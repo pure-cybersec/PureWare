@@ -2,6 +2,7 @@
 #define PUREWARE_PUREWARE_HPP_
 
 #pragma once
+#pragma comment(lib, "Rstrtmgr.lib")
 
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
@@ -9,6 +10,7 @@
 #include <iostream>
 #include <filesystem>
 #include <Windows.h>
+#include <restartmanager.h>
 #include <locale>
 #include <shlobj.h> // For FileModule FOLDERID_*
 
