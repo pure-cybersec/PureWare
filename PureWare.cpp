@@ -1,6 +1,5 @@
 ﻿#include "PureWare.hpp"
 
-using path_t = std::filesystem::path;
 using namespace std;
 auto file_logger = spdlog::basic_logger_mt("file_logger", "logs/my_log.txt");
 
@@ -30,7 +29,7 @@ int main(int argc, char* argv[])
     }
 
     NoteModule warn_user;
-    warn_user.MakeSomeShit();
+    warn_user.NotifyUsersAboutWorkResults();
 
     return 0;
 }
@@ -239,14 +238,16 @@ NoteModule::NoteModule() : Note_that_would_be_set_in_file(L"Your PC's files were
 NoteModule::NoteModule(std::wstring Note_that_would_be_set_in_file) : Note_that_would_be_set_in_file(Note_that_would_be_set_in_file) {
 }
 
-void NoteModule::MakeSomeShit() {
+// This method notifies user about program.
+// Starts windows to attrach attetnion and creates REAME file with needed explanations.
+void NoteModule::NotifyUsersAboutWorkResults() {
     // Getting username
-    wchar_t username[257];
-    DWORD username_len = 257;
-    GetUserNameW(username, &username_len); // Возможно слоамается, если запустить от администратора.
+    wchar_t UsernameWhoStartedProgram[257];
+    DWORD UsernameWhoStartedProgram_len = 257;
+    GetUserNameW(UsernameWhoStartedProgram, &UsernameWhoStartedProgram_len);
 
     // Creating README file at parsed above user's Desktop.
-    std::filesystem::path README_file_path = L"C:\\Users\\" + std::wstring(username) + L"\\Desktop\\README.txt";
+    path_t README_file_path = L"C:\\Users\\" + std::wstring(UsernameWhoStartedProgram) + L"\\Desktop\\README.txt";
     Create_README_file(README_file_path);
 
 
@@ -260,22 +261,22 @@ void NoteModule::MakeSomeShit() {
 
     // If msbox's "Yes" button was pushed - open README.
     if (msgboxID == IDYES) {
-        wchar_t string_to_open_README[1024] = L"start ";
-        wcscat(string_to_open_README, README_file_path.c_str());
+        wchar_t console_string_to_open_README[1024] = L"start ";
+        wcscat(console_string_to_open_README, README_file_path.c_str());
 
         SetConsoleOutputCP(1251);
         SetConsoleCP(1251);
-        _wsystem(string_to_open_README);
+        _wsystem(console_string_to_open_README);
     }
 }
 
 // Method that creates README file at Desktop
-void NoteModule::Create_README_file(std::filesystem::path README_path) {
+void NoteModule::Create_README_file(path_t const README_path){
     std::wofstream out;
     out.open(README_path);
     if (out.is_open())
     {
-        out << Note_that_would_be_set_in_file << std::endl;
+        out << this->Note_that_would_be_set_in_file << std::endl;
     }
     out.close();
 
