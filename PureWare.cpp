@@ -278,7 +278,7 @@ void NoteModule::Create_README_file(const path_t& README_path) {
     // Moving variable's content into a file
     out << Note_that_would_be_set_in_file << std::endl;
 
-    out.close();
+    // out is closed automatically due to the destructor
 }
 
 // NoteModule implementation ends here
