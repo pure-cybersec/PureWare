@@ -2,7 +2,10 @@
 #define PUREWARE_PUREWARE_HPP_
 
 #pragma once
-#pragma comment(lib, "Rstrtmgr.lib")
+#pragma comment(lib, "Rstrtmgr.lib") // Linking Restart Manager
+#pragma comment(lib, "ws2_32.lib") // Linking Winsock
+#pragma comment(lib, "libssl.lib") // Linking OpenSSL
+#pragma comment(lib, "libcrypto.lib") // Linking SSL/TLS cryptography
 
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
@@ -10,7 +13,11 @@
 #include <iostream>
 #include <filesystem>
 #include <Windows.h>
-#include <restartmanager.h>
+#include <restartmanager.h> // To check if files are in use by other processes
+#include <winsock2.h> // For basic networking
+#include <ws2tcpip.h> // For IP address translation
+#include <openssl/ssl.h> // For SSL/TLS connections
+#include <openssl/err.h> // For SSL/TLS error handling
 #include <locale>
 #include <shellapi.h>
 #include <objbase.h>
