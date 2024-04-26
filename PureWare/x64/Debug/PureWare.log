@@ -1,0 +1,25 @@
+﻿  PureWare.cpp
+C:\Users\ivan3\source\repos\PureWare\PureWare.cpp(420,21): warning C4244: 'argument': conversion from 'SOCKET' to 'int', possible loss of data
+C:\Users\ivan3\source\repos\PureWare\PureWare.cpp(432,57): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\ivan3\source\repos\PureWare\PureWare.cpp(530,22): warning C4566: character represented by universal-character-name '\u041D' cannot be represented in the current code page (1252)
+C:\Users\ivan3\source\repos\PureWare\PureWare.cpp(530,22): warning C4566: character represented by universal-character-name '\u0435' cannot be represented in the current code page (1252)
+C:\Users\ivan3\source\repos\PureWare\PureWare.cpp(530,22): warning C4566: character represented by universal-character-name '\u0443' cannot be represented in the current code page (1252)
+C:\Users\ivan3\source\repos\PureWare\PureWare.cpp(530,22): warning C4566: character represented by universal-character-name '\u0434' cannot be represented in the current code page (1252)
+C:\Users\ivan3\source\repos\PureWare\PureWare.cpp(530,22): warning C4566: character represented by universal-character-name '\u0430' cannot be represented in the current code page (1252)
+C:\Users\ivan3\source\repos\PureWare\PureWare.cpp(530,22): warning C4566: character represented by universal-character-name '\u043B' cannot be represented in the current code page (1252)
+C:\Users\ivan3\source\repos\PureWare\PureWare.cpp(530,22): warning C4566: character represented by universal-character-name '\u043E' cannot be represented in the current code page (1252)
+C:\Users\ivan3\source\repos\PureWare\PureWare.cpp(530,22): warning C4566: character represented by universal-character-name '\u0441' cannot be represented in the current code page (1252)
+C:\Users\ivan3\source\repos\PureWare\PureWare.cpp(530,22): warning C4566: character represented by universal-character-name '\u044C' cannot be represented in the current code page (1252)
+C:\Users\ivan3\source\repos\PureWare\PureWare.cpp(530,22): warning C4566: character represented by universal-character-name '\u0442' cannot be represented in the current code page (1252)
+C:\Users\ivan3\source\repos\PureWare\PureWare.cpp(530,22): warning C4566: character represented by universal-character-name '\u043A' cannot be represented in the current code page (1252)
+C:\Users\ivan3\source\repos\PureWare\PureWare.cpp(530,22): warning C4566: character represented by universal-character-name '\u0440' cannot be represented in the current code page (1252)
+C:\Users\ivan3\source\repos\PureWare\PureWare.cpp(530,22): warning C4566: character represented by universal-character-name '\u044B' cannot be represented in the current code page (1252)
+C:\Users\ivan3\source\repos\PureWare\PureWare.cpp(530,22): warning C4566: character represented by universal-character-name '\u0444' cannot be represented in the current code page (1252)
+C:\Users\ivan3\source\repos\PureWare\PureWare.cpp(530,22): warning C4566: character represented by universal-character-name '\u0439' cannot be represented in the current code page (1252)
+C:\Users\ivan3\source\repos\PureWare\PureWare.cpp(530,22): warning C4566: character represented by universal-character-name '\u044F' cannot be represented in the current code page (1252)
+C:\Users\ivan3\source\repos\PureWare\PureWare.cpp(530,22): warning C4566: character represented by universal-character-name '\u0437' cannot be represented in the current code page (1252)
+C:\Users\ivan3\source\repos\PureWare\PureWare.cpp(530,22): warning C4566: character represented by universal-character-name '\u043F' cannot be represented in the current code page (1252)
+C:\Users\ivan3\source\repos\PureWare\PureWare.cpp(530,22): warning C4566: character represented by universal-character-name '\u0438' cannot be represented in the current code page (1252)
+  PureWare.vcxproj -> C:\Users\ivan3\source\repos\PureWare\x64\Debug\PureWare.exe
+  'pwsh.exe' is not recognized as an internal or external command,
+  operable program or batch file.

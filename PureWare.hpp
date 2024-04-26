@@ -6,6 +6,7 @@
 #pragma comment(lib, "ws2_32.lib") // Linking Winsock
 #pragma comment(lib, "libssl.lib") // Linking OpenSSL
 #pragma comment(lib, "libcrypto.lib") // Linking SSL/TLS cryptography
+#pragma comment(lib, "cryptopp.lib") // Linking AES and RSA cryptography
 
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
@@ -23,6 +24,13 @@
 #include <objbase.h>
 #include <shlwapi.h> // PathCombineW, etc
 #include <shlobj.h> // For FileModule FOLDERID_*
+#include <cryptopp/rsa.h> // For RSA encryption-decryption
+#include <cryptopp/osrng.h> // For crypto-secured random number generation
+#include <cryptopp/aes.h> // For AES encryption-decryption
+#include <cryptopp/modes.h> // For ciphers operations
+#include <cryptopp/filters.h> // For ciphers management
+#include <cryptopp/files.h> // For files encryption-decryption
+#include <cryptopp/base64.h> // For base64 enryption-decryption
 
 using path_t = std::filesystem::path;
 
