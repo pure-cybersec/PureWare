@@ -1,4 +1,0 @@
-C:\Users\ivan3\source\repos\PureWare\x64\Debug\libssl-3-x64.dll
-C:\Users\ivan3\source\repos\PureWare\x64\Debug\libcrypto-3-x64.dll
-C:\Users\ivan3\source\repos\PureWare\x64\Debug\fmtd.dll
-C:\Users\ivan3\source\repos\PureWare\PureWare\x64\Debug\PureWare.vcxproj.Up2Date
