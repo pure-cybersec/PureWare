@@ -34,3 +34,10 @@
 out
 .vs
 exe
+/logs
+/x64/Debug
+/PureWare/x64/Debug
+/PureWare.sln
+/PureWare.vcxproj
+/PureWare.vcxproj.filters
+/PureWare.vcxproj.user

