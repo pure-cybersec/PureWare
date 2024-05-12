@@ -1,0 +1,9 @@
+{
+  "name": "cripter",
+  "dependencies": [
+    "cryptopp",
+    "fmt",
+    "spdlog",
+    "openssl"
+  ]
+}
