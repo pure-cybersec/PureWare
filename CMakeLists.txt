@@ -14,6 +14,11 @@ find_package(spdlog CONFIG REQUIRED)
 find_package(fmt CONFIG REQUIRED)
     target_link_libraries(cripter PRIVATE fmt::fmt-header-only)
 
+find_package(cryptopp CONFIG REQUIRED)
+    target_link_libraries(cripter PRIVATE cryptopp::cryptopp)
+
+find_package(OpenSSL REQUIRED)
+    target_link_libraries(cripter PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 
 target_link_options(cripter PRIVATE
     "/level='requireAdministrator'"
